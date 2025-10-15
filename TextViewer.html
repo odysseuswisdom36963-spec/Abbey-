@@ -138,12 +138,7 @@
 
   <!-- 🧭 Toolbar -->
   <div id="toolbar">
-    <button class="wordBtn" onclick="countWords()">Count Words</button>
-
-    <div id="counterBox">
-      Total words: <span id="totalCount">0</span><br>
-      Unique words: <span id="uniqueCount">0</span>
-    </div>
+    
 <!-- 📚 Multi-word search panel -->
 <div id="multiSearchPanel" style="display:flex; flex-direction:column; width:100%; margin-top:8px;">
   <label for="multiSearch" style="font-size:14px;">Multi-word Search (paste list of words below):</label>
@@ -152,7 +147,16 @@
   <div id="multiSearchResults" style="margin-top:6px; font-size:14px; line-height:1.4;"></div>
 </div>
     <input id="search" placeholder="Search word…" onkeydown="if(event.key==='Enter') searchText()">
-    <button onclick="searchText()">Search</button>
+ 
+
+<button class="wordBtn" onclick="countWords()">Count Words</button>
+
+    <div id="counterBox">
+      Total words: <span id="totalCount">0</span><br>
+      Unique words: <span id="uniqueCount">0</span>
+    </div>
+
+   <button onclick="searchText()">Search</button>
     <button onclick="copySelected()">Copy Selected</button>
     <button onclick="clearSearch()">Clear</button>
   </div>
