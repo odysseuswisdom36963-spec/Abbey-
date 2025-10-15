@@ -230,6 +230,43 @@
       document.getElementById('totalCount').textContent = total;
       document.getElementById('uniqueCount').textContent = unique;
     }
+
+
+    function multiWordSearch() {
+  clearHighlights();
+  const raw = document.getElementById('multiSearch').value.trim();
+  if (!raw) return;
+
+  // Split by newline, clean and unique
+  const words = [...new Set(raw.split(/\r?\n/).map(w => w.trim().toLowerCase()).filter(Boolean))];
+
+  const cells = document.querySelectorAll('#grid td');
+  const foundWords = new Set();
+
+  // Highlight matches for each word
+  cells.forEach(td => {
+    const text = td.textContent.toLowerCase();
+    if (words.some(w => text.includes(w))) {
+      td.classList.add('highlighted');
+      words.forEach(w => {
+        if (text.includes(w)) foundWords.add(w);
+      });
+    }
+  });
+
+  // Display check / cross results
+  const resultsDiv = document.getElementById('multiSearchResults');
+  let resultsHTML = "<b>Search Results:</b><br>";
+  for (const w of words) {
+    const found = foundWords.has(w);
+    resultsHTML += `<span style="color:${found ? '#10b981' : '#f87171'}">${found ? '✅' : '❌'} ${w}</span><br>`;
+  }
+  resultsDiv.innerHTML = resultsHTML;
+
+  // Scroll to first found match
+  const firstMatch = document.querySelector('#grid td.highlighted');
+  if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   </script>
 
 </body>
