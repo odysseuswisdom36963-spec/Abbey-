@@ -1,12 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2136051846434356"
-     crossorigin="anonymous"></script>
-
-  
   <meta charset="UTF-8" />
   <title>Word Frequency Analyzer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -75,13 +69,8 @@
       top: 0;
       z-index: 1;
     }
-    tr:hover {
-      background: #f7f9fc;
-    }
-    .small {
-      font-size: .75rem;
-      color: #555;
-    }
+    tr:hover { background: #f7f9fc; }
+    .small { font-size: .75rem; color: #555; }
     .right { text-align: right; }
     #controls {
       display: none;
@@ -90,23 +79,38 @@
       gap: .5rem;
       flex-wrap: wrap;
     }
-    #controls label {
-      margin-right: .25rem;
-    }
+    #controls label { margin-right: .25rem; }
     #controls select {
       padding: .3rem .5rem;
       border-radius: .3rem;
       border: 1px solid #cbd5e1;
     }
+    #comboControls {
+      margin-top: .5rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
   </style>
 </head>
 <body>
   <h1>Word Frequency Analyzer</h1>
-  <p>Give me thy text; yea, even many chapters. Press “Go,” and I shall return unto thee the words most used, their counts, and the percentage of the whole. Moreover, thou mayest extract any column for thy further use.</p>
-  <textarea id="input" placeholder="Paste thy text here..."></textarea>
-  <div>
+  <p>Give me thy text; yea, even many chapters. Press “Go,” and I shall return unto thee the words most used, their counts, and the percentage of the whole. Moreover, thou mayest choose combinations of two or three words.</p>
+
+  <div id="comboControls">
+    <button id="prevCombo" title="Previous">&#9664;</button>
+    <label for="comboSelect">Combination:</label>
+    <select id="comboSelect">
+      <option value="1">1-word</option>
+      <option value="2">2-word</option>
+      <option value="3">3-word</option>
+    </select>
+    <button id="nextCombo" title="Next">&#9654;</button>
     <button id="goBtn">Go</button>
   </div>
+  <textarea id="input" placeholder="Paste thy text here..."></textarea>
+
+
   <div class="summary" id="summary" style="display:none;"></div>
   <div id="output"></div>
 
@@ -120,34 +124,32 @@
     <button id="extractBtn">Copy to Clipboard</button>
     <span id="copiedMsg" class="small" style="margin-left:1rem; color:green; display:none;">Copied!</span>
   </div>
+
   <a href="https://translate.google.com/" target="_blank">Go to Google Translate</a>
 
   <script>
-    // Utility: normalize and split into words (keeps apostrophes within words, strips other punctuation)
     function extractWords(text) {
-  // Normalize to composed form for consistency.
-  const norm = text.normalize('NFC');
+      const norm = text.normalize('NFC');
+      const cleaned = norm.replace(/[\u2014\u2013\u2010\u2011\u2012\u2015]/g, ' ');
+      const noDigits = cleaned.replace(/\p{N}+/gu, '');
+      const pattern = /[\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*/gu;
+      const matches = noDigits.match(pattern);
+      if (!matches) return [];
+      return matches.map(w => w.toLowerCase());
+    }
 
-  // Replace various long dashes with space.
-  const cleaned = norm.replace(/[\u2014\u2013\u2010\u2011\u2012\u2015]/g, ' ');
-
-  // Remove all digits, even those inside words.
-  const noDigits = cleaned.replace(/\p{N}+/gu, '');
-
-  // Match sequences of Unicode letters and marks (excluding numbers), allowing interior connectors.
-  const pattern = /[\p{L}\p{M}]+(?:['’\-][\p{L}\p{M}]+)*/gu;
-  const matches = noDigits.match(pattern);
-  if (!matches) return [];
-
-  // Return lowercased words.
-  return matches.map(w => w.toLowerCase());
-}
+    function makeNGrams(words, n) {
+      if (n <= 1) return words;
+      const ngrams = [];
+      for (let i = 0; i <= words.length - n; i++) {
+        ngrams.push(words.slice(i, i + n).join(' '));
+      }
+      return ngrams;
+    }
 
     function computeFrequencies(words) {
       const freq = new Map();
-      for (const w of words) {
-        freq.set(w, (freq.get(w) || 0) + 1);
-      }
+      for (const w of words) freq.set(w, (freq.get(w) || 0) + 1);
       return freq;
     }
 
@@ -156,7 +158,7 @@
       const thead = document.createElement('thead');
       thead.innerHTML = `
         <tr>
-          <th style="width:40%;">Word</th>
+          <th style="width:40%;">Word / Phrase</th>
           <th class="right">Count</th>
           <th class="right">Percentage</th>
         </tr>`;
@@ -177,10 +179,16 @@
     }
 
     function escapeHtml(s) {
-      return s.replace(/[&<>"']/g, function(c){
-        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-      });
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
+
+    const comboSelect = document.getElementById('comboSelect');
+    document.getElementById('prevCombo').addEventListener('click', () => {
+      if (comboSelect.selectedIndex > 0) comboSelect.selectedIndex--;
+    });
+    document.getElementById('nextCombo').addEventListener('click', () => {
+      if (comboSelect.selectedIndex < comboSelect.options.length - 1) comboSelect.selectedIndex++;
+    });
 
     document.getElementById('goBtn').addEventListener('click', () => {
       const btn = document.getElementById('goBtn');
@@ -200,20 +208,19 @@
           btn.disabled = false;
           return;
         }
-        const freqMap = computeFrequencies(words);
-        const total = words.length;
-        const sorted = Array.from(freqMap.entries()).sort((a,b) => {
-          if (b[1] !== a[1]) return b[1] - a[1];
-          return a[0] < b[0] ? -1 : 1;
-        });
+        const n = parseInt(comboSelect.value, 10);
+        const tokens = makeNGrams(words, n);
+        const freqMap = computeFrequencies(tokens);
+        const total = tokens.length;
+        const sorted = Array.from(freqMap.entries()).sort((a,b) => b[1]-a[1] || a[0].localeCompare(b[0]));
         summary.innerHTML = `
-          Total words: <strong>${total.toLocaleString()}</strong>. 
-          Unique words: <strong>${freqMap.size.toLocaleString()}</strong>.
-          Top word: <strong>${escapeHtml(sorted[0][0])}</strong> appears <strong>${sorted[0][1].toLocaleString()}</strong> times (${((sorted[0][1]/total)*100).toFixed(2)}%).
+          Combination size: <strong>${n}</strong>.<br>
+          Total items: <strong>${total.toLocaleString()}</strong>. 
+          Unique items: <strong>${freqMap.size.toLocaleString()}</strong>.
+          Top item: <strong>${escapeHtml(sorted[0][0])}</strong> appears <strong>${sorted[0][1].toLocaleString()}</strong> times (${((sorted[0][1]/total)*100).toFixed(2)}%).
         `;
         summary.style.display = 'block';
-        const table = buildTable(sorted, total);
-        output.appendChild(table);
+        output.appendChild(buildTable(sorted, total));
         document.getElementById('controls').style.display = 'flex';
         document.getElementById('copiedMsg').style.display = 'none';
         btn.disabled = false;
@@ -225,22 +232,17 @@
       const table = document.querySelector('#output table');
       if (!table) return;
       const rows = table.querySelectorAll('tbody tr');
-      const values = Array.from(rows).map(row => {
-        return row.children[colIndex].textContent.trim();
-      });
+      const values = Array.from(rows).map(row => row.children[colIndex].textContent.trim());
       const joined = values.join('\n');
       navigator.clipboard.writeText(joined).then(() => {
         const msg = document.getElementById('copiedMsg');
         msg.style.display = 'inline';
-        setTimeout(() => { msg.style.display = 'none'; }, 2000);
+        setTimeout(() => msg.style.display = 'none', 2000);
       });
     });
 
-    // Ctrl+Enter shortcut
-    document.getElementById('input').addEventListener('keydown', (e) => {
-      if (e.ctrlKey && e.key === 'Enter') {
-        document.getElementById('goBtn').click();
-      }
+    document.getElementById('input').addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key === 'Enter') document.getElementById('goBtn').click();
     });
   </script>
 </body>
